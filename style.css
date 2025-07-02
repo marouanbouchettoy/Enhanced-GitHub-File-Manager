@@ -47,6 +47,7 @@ h2 {
 
 .form-group {
     margin-bottom: 20px;
+    transition: all 0.3s ease;
 }
 
 label {
@@ -242,4 +243,37 @@ button:disabled {
     .form-row button {
         width: 100%;
     }
+    
+    .console-section {
+        position: static;
+    }
 }
+
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .section {
+        padding: 15px;
+    }
+    
+    .tab {
+        font-size: 12px;
+        padding: 10px 5px;
+    }
+    
+    button {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+    
+    h2 {
+        font-size: 1.5em;
+    }
+    
+    h3 {
+        font-size: 1.1em;
+    }
+}
+
