@@ -138,48 +138,24 @@ button:disabled {
     transition: width 0.3s ease;
 }
 
-.tabs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    margin-bottom: 20px;
-    background: #ecf0f1;
-    border-radius: 8px;
-    padding: 4px;
-}
-
-.tab {
-    padding: 12px;
-    text-align: center;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-    font-weight: 600;
-}
-
-.tab.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.file-preview {
-    max-height: 200px;
-    overflow-y: auto;
-    background: #f8f9fa;
-    padding: 10px;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 12px;
-}
-
 .console-section {
     position: sticky;
     top: 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
+    .right-column {
+        position: static;
+    }
+    .section {
+        padding: 15px;
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
 }
