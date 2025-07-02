@@ -33,6 +33,7 @@
                     <div class="tab active" onclick="switchTab('uploadTab')">📤 Upload Files</div>
                     <div class="tab" onclick="switchTab('readTab')">📖 Read File</div>
                     <div class="tab" onclick="switchTab('manageTab')">📁 Manage Files</div>
+                    <div class="tab" onclick="switchTab('repoTab')">➕ Create Repo</div>
                 </div>
 
                 <div id="uploadTab" class="tab-content active">
@@ -106,6 +107,43 @@
                                 </div>
                                 <button type="submit">🗑️ Delete File</button>
                             </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="repoTab" class="tab-content">
+                    <div class="section">
+                        <h3>➕ Create New Repository</h3>
+                        <div class="repo-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="repoName">Personal Repository Name:</label>
+                                    <input type="text" id="repoName" placeholder="Enter repository name">
+                                </div>
+                                <button onclick="createPersonalRepo()">Create Personal Repository</button>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="orgRepoName">Organization Repository Name:</label>
+                                    <input type="text" id="orgRepoName" placeholder="Enter repository name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="orgForRepo">Organization Name:</label>
+                                    <input type="text" id="orgForRepo" placeholder="Enter organization name">
+                                </div>
+                                <button onclick="createOrgRepo()">Create in Organization</button>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="checkOrg">Check Organization Permissions:</label>
+                                    <input type="text" id="checkOrg" placeholder="Enter organization name">
+                                </div>
+                                <button onclick="checkOrgPermissions()">Check Permissions</button>
+                            </div>
+
+                            <div id="repoOutput"></div>
                         </div>
                     </div>
                 </div>
