@@ -33,8 +33,8 @@ function updateConfigFields(activeTab) {
 }
 
 // Initialiser les champs au chargement
-document.addEventListener('DOMContentLoaded', function() {
-  updateConfigFields('uploadTab');
+document.addEventListener("DOMContentLoaded", function () {
+  updateConfigFields("uploadTab");
 });
 
 function toggleFileInput() {
@@ -586,7 +586,7 @@ async function listRepositoryFiles() {
             <div style="margin-top: 15px;">
                 <button onclick="downloadFileTree()" style="background: #27ae60; margin-right: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">💾 Export Tree</button>
                 <button onclick="refreshFileTree()" style="background: #3498db; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">🔄 Refresh</button>
-                <button onclick="copyFileTree()" style="background: #f39c12; margin-left: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">📋 Copy to Clipboard</button>
+                // <button onclick="copyFileTree()" style="background: #f39c12; margin-left: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">📋 Copy to Clipboard</button>
             </div>
         `;
   } catch (err) {
@@ -810,7 +810,6 @@ async function createOrgRepo() {
   }
 }
 
-
 // ====================
 // DELETE REPO FUNCTIONS
 // ====================
@@ -819,33 +818,40 @@ async function deletePersonalRepo() {
   const token = document.getElementById("globalToken").value.trim();
   const repoName = document.getElementById("deleteRepoName").value.trim();
   if (!token || !repoName) {
-      showRepoMessage("Please enter a token and repository name.", true);
-      return;
+    showRepoMessage("Please enter a token and repository name.", true);
+    return;
   }
-  
+
   try {
-      // Get current username
-      const user = await githubRequest(
-          "https://api.github.com/user",
-          "GET",
-          token
-      );
-      
-      if (!confirm(`Are you SURE you want to PERMANENTLY delete "${repoName}"? This action cannot be undone.`)) {
-          return;
-      }
-      
-      await githubRequest(
-          `https://api.github.com/repos/${user.login}/${repoName}`,
-          "DELETE",
-          token
-      );
-      
-      showRepoMessage(`Repository "${repoName}" deleted successfully.`);
-      logOutput(`✅ Personal repository deleted: ${repoName}`, "success");
+    // Get current username
+    const user = await githubRequest(
+      "https://api.github.com/user",
+      "GET",
+      token
+    );
+
+    if (
+      !confirm(
+        `Are you SURE you want to PERMANENTLY delete "${repoName}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    await githubRequest(
+      `https://api.github.com/repos/${user.login}/${repoName}`,
+      "DELETE",
+      token
+    );
+
+    showRepoMessage(`Repository "${repoName}" deleted successfully.`);
+    logOutput(`✅ Personal repository deleted: ${repoName}`, "success");
   } catch (error) {
-      showRepoMessage(`Error: ${error.message}`, true);
-      logOutput(`❌ Error deleting personal repository: ${error.message}`, "error");
+    showRepoMessage(`Error: ${error.message}`, true);
+    logOutput(
+      `❌ Error deleting personal repository: ${error.message}`,
+      "error"
+    );
   }
 }
 
@@ -854,62 +860,74 @@ async function deleteOrgRepo() {
   const repoName = document.getElementById("deleteOrgRepoName").value.trim();
   const orgName = document.getElementById("deleteOrgForRepo").value.trim();
   if (!token || !repoName || !orgName) {
-      showRepoMessage(
-          "Please enter a token, repository name and organization name.",
-          true
-      );
-      return;
+    showRepoMessage(
+      "Please enter a token, repository name and organization name.",
+      true
+    );
+    return;
   }
-  
+
   try {
-      if (!confirm(`Are you SURE you want to PERMANENTLY delete "${orgName}/${repoName}"? This action cannot be undone.`)) {
-          return;
-      }
-      
-      await githubRequest(
-          `https://api.github.com/repos/${orgName}/${repoName}`,
-          "DELETE",
-          token
-      );
-      
-      showRepoMessage(`Repository "${orgName}/${repoName}" deleted successfully.`);
-      logOutput(`✅ Organization repository deleted: ${orgName}/${repoName}`, "success");
+    if (
+      !confirm(
+        `Are you SURE you want to PERMANENTLY delete "${orgName}/${repoName}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    await githubRequest(
+      `https://api.github.com/repos/${orgName}/${repoName}`,
+      "DELETE",
+      token
+    );
+
+    showRepoMessage(
+      `Repository "${orgName}/${repoName}" deleted successfully.`
+    );
+    logOutput(
+      `✅ Organization repository deleted: ${orgName}/${repoName}`,
+      "success"
+    );
   } catch (error) {
-      showRepoMessage(`Error: ${error.message}`, true);
-      logOutput(`❌ Error deleting organization repository: ${error.message}`, "error");
+    showRepoMessage(`Error: ${error.message}`, true);
+    logOutput(
+      `❌ Error deleting organization repository: ${error.message}`,
+      "error"
+    );
   }
 }
 
 // Update githubRequest to handle DELETE method
 async function githubRequest(url, method, token, body = null) {
   const headers = {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "Content-Type": "application/json",
+    "X-GitHub-Api-Version": "2022-11-28",
   };
   const config = { method, headers };
   if (body) config.body = JSON.stringify(body);
-  
+
   try {
-      const response = await fetch(url, config);
-      
-      // Handle 204 No Content responses
-      if (response.status === 204) {
-          return { status: "success" };
-      }
-      
-      if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(
-              `Error ${response.status}: ${
-                  error.message || "Unknown error"
-              } (URL: ${url})`
-          );
-      }
-      return response.json();
+    const response = await fetch(url, config);
+
+    // Handle 204 No Content responses
+    if (response.status === 204) {
+      return { status: "success" };
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        `Error ${response.status}: ${
+          error.message || "Unknown error"
+        } (URL: ${url})`
+      );
+    }
+    return response.json();
   } catch (error) {
-      console.error("API Error:", error);
-      throw error;
+    console.error("API Error:", error);
+    throw error;
   }
 }
