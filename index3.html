@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced GitHub File Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h2>🚀 Enhanced GitHub File Manager</h2>
+        <div class="main-content">
+            <div class="left-column">
+                <!-- GitHub Configuration -->
+                <div class="section">
+                    <h3>🔧 GitHub Configuration</h3>
+                    <div class="form-group">
+                        <label for="globalToken">GitHub Token (Personal Access Token):</label>
+                        <input type="password" id="globalToken" placeholder="ghp_...">
+                    </div>
+                    <div class="form-group">
+                        <label for="globalOwner">GitHub Owner (Username/Organization):</label>
+                        <input type="text" id="globalOwner" placeholder="e.g., octocat or my-org">
+                    </div>
+                    <div class="form-group">
+                        <label for="globalRepo">GitHub Repository:</label>
+                        <input type="text" id="globalRepo" placeholder="e.g., my-repo">
+                    </div>
+                </div>
+
+                <!-- Repository Management -->
+                <div class="section">
+                    <h3>📁 Repository Management</h3>
+                    <div class="form-group">
+                        <label for="personalRepoName">Personal Repository Name:</label>
+                        <input type="text" id="personalRepoName" placeholder="e.g., my-new-repo">
+                        <button onclick="createPersonalRepo()">Create Personal Repository</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="orgName">Organization Name:</label>
+                        <input type="text" id="orgName" placeholder="e.g., my-org">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgRepoName">Organization Repository Name:</label>
+                        <input type="text" id="orgRepoName" placeholder="e.g., org-repo">
+                        <button onclick="createOrgRepo()">Create Organization Repository</button>
+                    </div>
+                    <div class="form-group">
+                        <button onclick="checkPermissions()">Check Organization Permissions</button>
+                    </div>
+                </div>
+
+                <!-- Upload Files -->
+                <div class="section">
+                    <h3>📤 Upload Files/Directory</h3>
+                    <form id="uploadForm">
+                        <div class="form-group">
+                            <label for="basePath">Base Directory Path in Repository (optional):</label>
+                            <input type="text" id="basePath" placeholder="e.g., folder/subfolder">
+                        </div>
+                        <div class="form-group">
+                            <label for="commitMessage">Commit Message:</label>
+                            <input type="text" id="commitMessage" placeholder="e.g., Add new files">
+                        </div>
+                        <div class="form-group">
+                            <label for="labels">Labels (comma-separated, optional):</label>
+                            <input type="text" id="labels" placeholder="e.g., feature, update">
+                        </div>
+                        <div class="form-group">
+                            <label for="uploadType">Upload Type:</label>
+                            <select id="uploadType" onchange="toggleFileInput()">
+                                <option value="files">Select Multiple Files</option>
+                                <option value="directory">Select Entire Directory</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label id="fileInputLabel" for="fileInput">Select Files:</label>
+                            <input type="file" id="fileInput" multiple>
+                        </div>
+                        <div class="file-info" id="filePreview" style="display: none;">
+                            <strong>Selected Files:</strong>
+                            <div id="fileList"></div>
+                        </div>
+                        <div class="progress-bar" style="display: none;">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <button type="submit" id="uploadBtn">🚀 Upload to GitHub</button>
+                    </form>
+                </div>
+
+                <!-- Read File -->
+                <div class="section">
+                    <h3>📖 Read File from GitHub</h3>
+                    <form id="readForm">
+                        <div class="form-group">
+                            <label for="readPath">File Path to Read:</label>
+                            <input type="text" id="readPath" placeholder="e.g., folder/file.txt">
+                        </div>
+                        <button type="submit">📖 Read File</button>
+                    </form>
+                </div>
+
+                <!-- Manage Files -->
+                <div class="section">
+                    <h3>📁 Repository File Management</h3>
+                    <button onclick="listRepositoryFiles()">📋 List All Files</button>
+                    <div id="fileTree"></div>
+                    <form id="deleteForm">
+                        <h4>🗑️ Delete File</h4>
+                        <div class="form-group">
+                            <label for="deletePath">File Path to Delete:</label>
+                            <input type="text" id="deletePath" placeholder="e.g., folder/file.txt or folder/*">
+                        </div>
+                        <div class="form-group">
+                            <label for="deleteCommitMessage">Commit Message:</label>
+                            <input type="text" id="deleteCommitMessage" placeholder="e.g., Remove file">
+                        </div>
+                        <button type="submit">🗑️ Delete File</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <!-- Output Console -->
+                <div class="console-section">
+                    <h3>📋 Output Console</h3>
+                    <pre id="output">Ready to upload files to GitHub...</pre>
+                    <button onclick="clearConsole()">🗑️ Clear Console</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+
+</html>
