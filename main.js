@@ -784,3 +784,107 @@ async function createOrgRepo() {
     );
   }
 }
+
+
+// ====================
+// DELETE REPO FUNCTIONS
+// ====================
+
+async function deletePersonalRepo() {
+  const token = document.getElementById("globalToken").value.trim();
+  const repoName = document.getElementById("deleteRepoName").value.trim();
+  if (!token || !repoName) {
+      showRepoMessage("Please enter a token and repository name.", true);
+      return;
+  }
+  
+  try {
+      // Get current username
+      const user = await githubRequest(
+          "https://api.github.com/user",
+          "GET",
+          token
+      );
+      
+      if (!confirm(`Are you SURE you want to PERMANENTLY delete "${repoName}"? This action cannot be undone.`)) {
+          return;
+      }
+      
+      await githubRequest(
+          `https://api.github.com/repos/${user.login}/${repoName}`,
+          "DELETE",
+          token
+      );
+      
+      showRepoMessage(`Repository "${repoName}" deleted successfully.`);
+      logOutput(`✅ Personal repository deleted: ${repoName}`, "success");
+  } catch (error) {
+      showRepoMessage(`Error: ${error.message}`, true);
+      logOutput(`❌ Error deleting personal repository: ${error.message}`, "error");
+  }
+}
+
+async function deleteOrgRepo() {
+  const token = document.getElementById("globalToken").value.trim();
+  const repoName = document.getElementById("deleteOrgRepoName").value.trim();
+  const orgName = document.getElementById("deleteOrgForRepo").value.trim();
+  if (!token || !repoName || !orgName) {
+      showRepoMessage(
+          "Please enter a token, repository name and organization name.",
+          true
+      );
+      return;
+  }
+  
+  try {
+      if (!confirm(`Are you SURE you want to PERMANENTLY delete "${orgName}/${repoName}"? This action cannot be undone.`)) {
+          return;
+      }
+      
+      await githubRequest(
+          `https://api.github.com/repos/${orgName}/${repoName}`,
+          "DELETE",
+          token
+      );
+      
+      showRepoMessage(`Repository "${orgName}/${repoName}" deleted successfully.`);
+      logOutput(`✅ Organization repository deleted: ${orgName}/${repoName}`, "success");
+  } catch (error) {
+      showRepoMessage(`Error: ${error.message}`, true);
+      logOutput(`❌ Error deleting organization repository: ${error.message}`, "error");
+  }
+}
+
+// Update githubRequest to handle DELETE method
+async function githubRequest(url, method, token, body = null) {
+  const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+  };
+  const config = { method, headers };
+  if (body) config.body = JSON.stringify(body);
+  
+  try {
+      const response = await fetch(url, config);
+      
+      // Handle 204 No Content responses
+      if (response.status === 204) {
+          return { status: "success" };
+      }
+      
+      if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(
+              `Error ${response.status}: ${
+                  error.message || "Unknown error"
+              } (URL: ${url})`
+          );
+      }
+      return response.json();
+  } catch (error) {
+      console.error("API Error:", error);
+      throw error;
+  }
+}
