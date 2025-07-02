@@ -10,7 +10,32 @@ function switchTab(tabName) {
     .forEach((content) => content.classList.remove("active"));
   event.target.classList.add("active");
   document.getElementById(tabName).classList.add("active");
+
+  // Afficher/masquer les champs de configuration
+  updateConfigFields(tabName);
 }
+
+function updateConfigFields(activeTab) {
+  const tokenField = document.querySelector(".field-token");
+  const ownerField = document.querySelector(".field-owner");
+  const repoField = document.querySelector(".field-repo");
+
+  // Réinitialiser tous les champs
+  tokenField.style.display = "block";
+  ownerField.style.display = "block";
+  repoField.style.display = "block";
+
+  // Masquer les champs non nécessaires selon l'onglet
+  if (activeTab === "repoTab" || activeTab === "removeRepoTab") {
+    ownerField.style.display = "none";
+    repoField.style.display = "none";
+  }
+}
+
+// Initialiser les champs au chargement
+document.addEventListener('DOMContentLoaded', function() {
+  updateConfigFields('uploadTab');
+});
 
 function toggleFileInput() {
   const uploadType = document.getElementById("uploadType").value;
