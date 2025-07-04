@@ -28,15 +28,16 @@
                         <input type="text" id="globalRepo" placeholder="Repository name">
                     </div>
                 </div>
-
+    
                 <div class="tabs">
                     <div class="tab active" onclick="switchTab('uploadTab')">📤 Upload Files</div>
                     <div class="tab" onclick="switchTab('readTab')">📖 Read File</div>
                     <div class="tab" onclick="switchTab('manageTab')">📁 Manage Files</div>
                     <div class="tab" onclick="switchTab('repoTab')">➕ Create Repo</div>
                     <div class="tab" onclick="switchTab('removeRepoTab')">🗑️ Delete Repo</div>
+                    <div class="tab" onclick="switchTab('copyRepoTab')">📦 Copy Repos</div>
                 </div>
-
+    
                 <div id="uploadTab" class="tab-content active">
                     <div class="section">
                         <h3>📤 Upload Files/Directory</h3>
@@ -75,7 +76,7 @@
                         </form>
                     </div>
                 </div>
-
+    
                 <div id="readTab" class="tab-content">
                     <div class="section">
                         <h3>📖 Read File from GitHub</h3>
@@ -88,7 +89,7 @@
                         </form>
                     </div>
                 </div>
-
+    
                 <div id="manageTab" class="tab-content">
                     <div class="section">
                         <h3>📁 Repository File Management</h3>
@@ -103,15 +104,14 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="deleteCommitMessage">Commit Message:</label>
-                                    <input type="text" id="deleteCommitMessage"
-                                        placeholder="e.g., Remove outdated file">
+                                    <input type="text" id="deleteCommitMessage" placeholder="e.g., Remove outdated file">
                                 </div>
                                 <button type="submit">🗑️ Delete File</button>
                             </form>
                         </div>
                     </div>
                 </div>
-
+    
                 <div id="repoTab" class="tab-content">
                     <div class="section">
                         <h3>➕ Create New Repository</h3>
@@ -123,7 +123,7 @@
                                 </div>
                                 <button onclick="createPersonalRepo()">Create Personal Repository</button>
                             </div>
-
+    
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="orgRepoName">Organization Repository Name:</label>
@@ -135,7 +135,7 @@
                                 </div>
                                 <button onclick="createOrgRepo()">Create in Organization</button>
                             </div>
-
+    
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="checkOrg">Check Organization Permissions:</label>
@@ -143,15 +143,13 @@
                                 </div>
                                 <button onclick="checkOrgPermissions()">Check Permissions</button>
                             </div>
-
+    
                             <div id="repoOutput"></div>
                         </div>
                     </div>
                 </div>
-
-
+    
                 <div id="removeRepoTab" class="tab-content">
-                    <!-- Inside #repoTab -->
                     <div class="section">
                         <h3>🗑️ Delete Repository</h3>
                         <div class="form-row">
@@ -161,7 +159,7 @@
                             </div>
                             <button onclick="deletePersonalRepo()">Delete Personal Repository</button>
                         </div>
-                    
+    
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="deleteOrgRepoName">Organization Repository Name:</label>
@@ -175,8 +173,61 @@
                         </div>
                     </div>
                 </div>
+    
+                <div id="copyRepoTab" class="tab-content">
+                    <div class="section">
+                        <h3>📦 GitHub Repository Copier</h3>
+    
+                        <div class="warning-box">
+                            <strong>⚠️ Important:</strong> This version copies the entire repository content (files,
+                            branches, commits).
+                            The operation may take several minutes depending on the size of the repositories.
+                        </div>
+    
+                        <div class="warning-box">
+                            <strong>🔐 Required Permissions:</strong> Your GitHub token must have full "repo"
+                            permissions for both organizations.
+                        </div>
+    
+                        <form id="copyRepoForm">
+                            <div class="form-group">
+                                <label for="sourceOrg">📂 Source Organization</label>
+                                <input type="text" id="sourceOrg" placeholder="CMHProjects" required>
+                            </div>
+    
+                            <div class="form-group">
+                                <label for="targetOrg">📁 Target Organization</label>
+                                <input type="text" id="targetOrg" placeholder="MailingMarouan" required>
+                            </div>
+    
+                            <div class="form-group">
+                                <label for="specificRepos">📋 Specific Repositories (optional)</label>
+                                <textarea id="specificRepos"
+                                    placeholder="Leave empty to copy all repos, or list names separated by commas:&#10;repo1, repo2, repo3"></textarea>
+                            </div>
+    
+                            <div class="button-group">
+                                <button type="button" class="btn-primary" onclick="startCopy()">
+                                    🚀 Copy Repositories
+                                </button>
+                                <button type="button" class="btn-secondary" onclick="testConnection()">
+                                    🔍 Test Connection
+                                </button>
+                                <button type="button" class="btn-danger" onclick="clearCopyLogs()">
+                                    🗑️ Clear Logs
+                                </button>
+                            </div>
+                        </form>
+    
+                        <div class="progress-bar" id="copyProgressBar" style="display: none;">
+                            <div class="progress-fill" id="copyProgressFill"></div>
+                        </div>
+    
+                        <div class="repo-count" id="repoCount"></div>
+                    </div>
+                </div>
             </div>
-
+    
             <div class="console-section">
                 <div class="section">
                     <h3>📋 Output Console</h3>
@@ -197,6 +248,8 @@
             </div>
         </div>
     </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.0/axios.min.js"></script>
     <script src="main.js"></script>
 </body>
 
