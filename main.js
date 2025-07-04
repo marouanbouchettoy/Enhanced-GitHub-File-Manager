@@ -1,3 +1,493 @@
+// Configuration globale
+let CONFIG = {};
+let isRunning = false;
+let totalRepos = 0;
+let processedRepos = 0;
+
+// Fonction pour logger les messages
+function logOutput(message, type = "info") {
+  const output = document.getElementById("output");
+  const timestamp = new Date().toLocaleTimeString();
+  const icons = { info: "ℹ️", success: "✅", error: "❌", warning: "⚠️" };
+  output.textContent += `\n[${timestamp}] ${icons[type] || "ℹ️"} ${message}`;
+  output.scrollTop = output.scrollHeight;
+}
+
+// Fonction pour mettre à jour la barre de progression de copie
+function updateCopyProgress() {
+  const progressBar = document.getElementById("copyProgressBar");
+  const progressFill = document.getElementById("copyProgressFill");
+  const repoCount = document.getElementById("repoCount");
+
+  if (totalRepos > 0) {
+    progressBar.style.display = "block";
+    const percentage = (processedRepos / totalRepos) * 100;
+    progressFill.style.width = `${percentage}%`;
+    repoCount.textContent = `${processedRepos} / ${totalRepos} repositories processed`;
+  }
+}
+
+// Fonction pour tester la connexion
+async function testConnection() {
+  const token = document.getElementById("globalToken").value.trim();
+  const sourceOrg = document.getElementById("sourceOrg").value.trim();
+
+  if (!token || !sourceOrg) {
+    logOutput("❌ Please fill in the token and source organization", "error");
+    return;
+  }
+
+  try {
+    logOutput("🔍 Testing connection...", "info");
+
+    const response = await axios.get(
+      `https://api.github.com/orgs/${sourceOrg}`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+
+    logOutput(
+      `✅ Connection successful! Organization: ${response.data.login}`,
+      "success"
+    );
+    logOutput(`📊 Public repositories: ${response.data.public_repos}`, "info");
+  } catch (error) {
+    logOutput(
+      `❌ Connection error: ${error.response?.data?.message || error.message}`,
+      "error"
+    );
+  }
+}
+
+// Fonction pour obtenir tous les repositories
+async function getAllRepositories(org, token) {
+  const repos = [];
+  let page = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    try {
+      const response = await axios.get(
+        `https://api.github.com/orgs/${org}/repos`,
+        {
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+          params: {
+            per_page: 100,
+            page: page,
+          },
+        }
+      );
+
+      repos.push(...response.data);
+      hasNextPage = response.data.length === 100;
+      page++;
+
+      logOutput(
+        `📄 Page ${page - 1} loaded (${response.data.length} repos)`,
+        "info"
+      );
+    } catch (error) {
+      logOutput(`❌ Error retrieving repos: ${error.message}`, "error");
+      break;
+    }
+  }
+
+  return repos;
+}
+
+// Fonction pour créer un repository
+async function createRepository(sourceRepo, targetOrg, token) {
+  try {
+    const response = await axios.post(
+      `https://api.github.com/orgs/${targetOrg}/repos`,
+      {
+        name: sourceRepo.name,
+        description: sourceRepo.description || "",
+        private: sourceRepo.private,
+        has_issues: sourceRepo.has_issues,
+        has_projects: sourceRepo.has_projects,
+        has_wiki: sourceRepo.has_wiki,
+        has_downloads: sourceRepo.has_downloads,
+        default_branch: sourceRepo.default_branch,
+      },
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 422) {
+      logOutput(
+        `⚠️ Repository ${sourceRepo.name} already exists in ${targetOrg}`,
+        "warning"
+      );
+      return null;
+    }
+    throw error;
+  }
+}
+
+// Fonction pour copier les fichiers récursivement
+async function copyFilesRecursively(
+  sourceOwner,
+  sourceRepo,
+  targetOwner,
+  targetRepo,
+  token
+) {
+  try {
+    logOutput(`  📁 Copying files...`, "info");
+
+    // Obtenir la liste des fichiers dans le repo source
+    const contents = await getRepositoryContents(
+      sourceOwner,
+      sourceRepo,
+      "",
+      token
+    );
+
+    if (!contents || contents.length === 0) {
+      logOutput(`  ⚠️ No files found in ${sourceRepo}`, "warning");
+      return;
+    }
+
+    let copiedFiles = 0;
+
+    // Copier chaque fichier
+    for (const item of contents) {
+      await copyFileOrDirectory(
+        sourceOwner,
+        sourceRepo,
+        targetOwner,
+        targetRepo,
+        item,
+        token
+      );
+      copiedFiles++;
+
+      // Petite pause entre les fichiers
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    logOutput(`  ✅ ${copiedFiles} items copied`, "success");
+  } catch (error) {
+    logOutput(`  ❌ Error copying files: ${error.message}`, "error");
+  }
+}
+
+// Fonction pour obtenir le contenu d'un repository
+async function getRepositoryContents(owner, repo, path, token) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    logOutput(`❌ Error retrieving content: ${error.message}`, "error");
+    return null;
+  }
+}
+
+// Fonction pour copier un fichier ou dossier
+async function copyFileOrDirectory(
+  sourceOwner,
+  sourceRepo,
+  targetOwner,
+  targetRepo,
+  item,
+  token
+) {
+  try {
+    if (item.type === "file") {
+      // Copier un fichier
+      const fileContent = await getFileContent(
+        sourceOwner,
+        sourceRepo,
+        item.path,
+        token
+      );
+      if (fileContent) {
+        await createOrUpdateFile(
+          targetOwner,
+          targetRepo,
+          item.path,
+          fileContent.content,
+          `Add ${item.name}`,
+          token
+        );
+        logOutput(`    ✅ ${item.name}`, "success");
+      }
+    } else if (item.type === "dir") {
+      // Copier un dossier récursivement
+      logOutput(`    📁 Folder: ${item.name}`, "info");
+      const subContents = await getRepositoryContents(
+        sourceOwner,
+        sourceRepo,
+        item.path,
+        token
+      );
+      if (subContents) {
+        for (const subItem of subContents) {
+          await copyFileOrDirectory(
+            sourceOwner,
+            sourceRepo,
+            targetOwner,
+            targetRepo,
+            subItem,
+            token
+          );
+        }
+      }
+    }
+  } catch (error) {
+    logOutput(`    ❌ Error copying ${item.name}: ${error.message}`, "error");
+  }
+}
+
+// Fonction pour obtenir le contenu d'un fichier
+async function getFileContent(owner, repo, path, token) {
+  try {
+    const response = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    logOutput(`❌ Error retrieving file ${path}: ${error.message}`, "error");
+    return null;
+  }
+}
+
+// Fonction pour créer ou mettre à jour un fichier
+async function createOrUpdateFile(owner, repo, path, content, message, token) {
+  try {
+    const response = await axios.put(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+      {
+        message: message,
+        content: content,
+      },
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    // Si le fichier existe déjà, essayer de le mettre à jour
+    if (error.response?.status === 422) {
+      try {
+        // Obtenir le SHA du fichier existant
+        const existingFile = await getFileContent(owner, repo, path, token);
+        if (existingFile) {
+          const updateResponse = await axios.put(
+            `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+            {
+              message: `Update ${path}`,
+              content: content,
+              sha: existingFile.sha,
+            },
+            {
+              headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            }
+          );
+          return updateResponse.data;
+        }
+      } catch (updateError) {
+        logOutput(`❌ Error updating file: ${updateError.message}`, "error");
+      }
+    }
+    throw error;
+  }
+}
+
+// Version alternative plus simple : utiliser l'API de copie directe
+async function copyRepositorySimple(sourceRepo, targetOrg, token) {
+  try {
+    logOutput(`📦 Processing: ${sourceRepo.name}`, "info");
+
+    // Méthode 1: Essayer la création avec un README initial
+    try {
+      const newRepo = await axios.post(
+        `https://api.github.com/orgs/${targetOrg}/repos`,
+        {
+          name: sourceRepo.name,
+          description: sourceRepo.description || "",
+          private: sourceRepo.private,
+          has_issues: sourceRepo.has_issues,
+          has_projects: sourceRepo.has_projects,
+          has_wiki: sourceRepo.has_wiki,
+          has_downloads: sourceRepo.has_downloads,
+          auto_init: true, // Créer avec un README initial
+          default_branch: sourceRepo.default_branch || "main",
+        },
+        {
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
+
+      logOutput(
+        `✅ Repository ${sourceRepo.name} created with initial branch`,
+        "success"
+      );
+      logOutput(`🔗 URL: ${newRepo.data.html_url}`, "info");
+
+      // Maintenant copier les fichiers un par un
+      await copyFilesRecursively(
+        CONFIG.sourceOrg,
+        sourceRepo.name,
+        targetOrg,
+        sourceRepo.name,
+        token
+      );
+    } catch (error) {
+      if (error.response?.status === 422) {
+        logOutput(`⚠️ Repository ${sourceRepo.name} already exists`, "warning");
+      } else {
+        throw error;
+      }
+    }
+
+    processedRepos++;
+    updateCopyProgress();
+
+    // Délai pour éviter les limitations de taux
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  } catch (error) {
+    logOutput(`❌ Error copying ${sourceRepo.name}: ${error.message}`, "error");
+    processedRepos++;
+    updateCopyProgress();
+  }
+}
+
+// Fonction principale pour démarrer la copie
+async function startCopy() {
+  if (isRunning) return;
+
+  const token = document.getElementById("globalToken").value.trim();
+  const sourceOrg = document.getElementById("sourceOrg").value.trim();
+  const targetOrg = document.getElementById("targetOrg").value.trim();
+  const specificRepos = document.getElementById("specificRepos").value;
+
+  if (!token || !sourceOrg || !targetOrg) {
+    logOutput("❌ Please fill in all required fields", "error");
+    return;
+  }
+
+  CONFIG = { token, sourceOrg, targetOrg };
+  isRunning = true;
+  processedRepos = 0;
+
+  // Désactiver les boutons
+  document
+    .querySelectorAll("#copyRepoForm button")
+    .forEach((btn) => (btn.disabled = true));
+
+  try {
+    logOutput(`🚀 Starting copy from ${sourceOrg} to ${targetOrg}`, "info");
+
+    let repos = [];
+
+    if (specificRepos.trim()) {
+      // Copier des repositories spécifiques
+      const repoNames = specificRepos
+        .split(",")
+        .map((name) => name.trim())
+        .filter((name) => name);
+      logOutput(`📋 Copying ${repoNames.length} specific repositories`, "info");
+
+      for (const repoName of repoNames) {
+        try {
+          const response = await axios.get(
+            `https://api.github.com/repos/${sourceOrg}/${repoName}`,
+            {
+              headers: {
+                Authorization: `token ${token}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+            }
+          );
+          repos.push(response.data);
+        } catch (error) {
+          logOutput(`❌ Repository ${repoName} not found`, "error");
+        }
+      }
+    } else {
+      // Obtenir tous les repositories
+      repos = await getAllRepositories(sourceOrg, token);
+    }
+
+    totalRepos = repos.length;
+    logOutput(`📋 ${totalRepos} repositories found`, "info");
+
+    // Copier chaque repository
+    for (const repo of repos) {
+      if (!isRunning) break; // Permettre l'arrêt
+      await copyRepositorySimple(repo, targetOrg, token);
+    }
+
+    logOutput("🎉 Copy process completed!", "success");
+  } catch (error) {
+    logOutput(`💥 Error during copy: ${error.message}`, "error");
+  } finally {
+    isRunning = false;
+    // Réactiver les boutons
+    document
+      .querySelectorAll("#copyRepoForm button")
+      .forEach((btn) => (btn.disabled = false));
+  }
+}
+
+// Fonction pour effacer les logs de copie
+function clearCopyLogs() {
+  const output = document.getElementById("output");
+  output.textContent = "Console cleared\n";
+  logOutput("📋 Ready to start...", "info");
+
+  // Réinitialiser la barre de progression
+  const progressBar = document.getElementById("copyProgressBar");
+  const repoCount = document.getElementById("repoCount");
+  progressBar.style.display = "none";
+  repoCount.textContent = "";
+
+  processedRepos = 0;
+  totalRepos = 0;
+}
+
+// ==============
+// EXISTING CODE
+// ==============
+
 let currentFileTree = "";
 let repoOutputElement = document.getElementById("repoOutput");
 
@@ -26,7 +516,11 @@ function updateConfigFields(activeTab) {
   repoField.style.display = "block";
 
   // Masquer les champs non nécessaires selon l'onglet
-  if (activeTab === "repoTab" || activeTab === "removeRepoTab") {
+  if (
+    activeTab === "repoTab" ||
+    activeTab === "removeRepoTab" ||
+    activeTab === "copyRepoTab"
+  ) {
     ownerField.style.display = "none";
     repoField.style.display = "none";
   }
@@ -66,8 +560,8 @@ function showFilePreview(files) {
     const path = file.webkitRelativePath || file.name;
     const size = (file.size / 1024).toFixed(1);
     html += `<div style="margin: 5px 0; padding: 5px; background: white; border-radius: 4px;">
-                📄 ${path} <span style="color: #7f8c8d;">(${size} KB)</span>
-            </div>`;
+                            📄 ${path} <span style="color: #7f8c8d;">(${size} KB)</span>
+                        </div>`;
   });
   html += `</div><div style="margin-top: 10px; font-weight: bold;">Total: ${files.length} files</div>`;
   fileList.innerHTML = html;
@@ -96,14 +590,6 @@ function updateProgress(percent) {
   const progressFill = document.getElementById("progressFill");
   progressBar.style.display = percent > 0 ? "block" : "none";
   progressFill.style.width = percent + "%";
-}
-
-function logOutput(message, type = "info") {
-  const output = document.getElementById("output");
-  const timestamp = new Date().toLocaleTimeString();
-  const icons = { info: "ℹ️", success: "✅", error: "❌", warning: "⚠️" };
-  output.textContent += `\n[${timestamp}] ${icons[type] || "ℹ️"} ${message}`;
-  output.scrollTop = output.scrollHeight;
 }
 
 function uint8ToBase64(uint8Array) {
@@ -577,18 +1063,17 @@ async function listRepositoryFiles() {
       "info"
     );
     document.getElementById("fileTree").innerHTML = `
-            <div style="background: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; white-space: pre; overflow-x: auto; font-size: 13px; line-height: 1.4;">
-                <div style="color: #3498db; font-weight: bold; margin-bottom: 10px;">🌳 Repository Structure (${
-                  files.length
-                } files, ${directories.length} directories)</div>
-                ${currentFileTree.replace(/\n/g, "<br>")}
-            </div>
-            <div style="margin-top: 15px;">
-                <button onclick="downloadFileTree()" style="background: #27ae60; margin-right: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">💾 Export Tree</button>
-                <button onclick="refreshFileTree()" style="background: #3498db; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">🔄 Refresh</button>
-                // <button onclick="copyFileTree()" style="background: #f39c12; margin-left: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">📋 Copy to Clipboard</button>
-            </div>
-        `;
+                    <div style="background: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; white-space: pre; overflow-x: auto; font-size: 13px; line-height: 1.4;">
+                        <div style="color: #3498db; font-weight: bold; margin-bottom: 10px;">🌳 Repository Structure (${
+                          files.length
+                        } files, ${directories.length} directories)</div>
+                        ${currentFileTree.replace(/\n/g, "<br>")}
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button onclick="downloadFileTree()" style="background: #27ae60; margin-right: 10px; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">💾 Export Tree</button>
+                        <button onclick="refreshFileTree()" style="background: #3498db; padding: 8px 16px; border: none; border-radius: 6px; color: white; cursor: pointer;">🔄 Refresh</button>
+                    </div>
+                `;
   } catch (err) {
     logOutput(`❌ Error listing files: ${err.message}`, "error");
     document.getElementById(
@@ -628,37 +1113,9 @@ function downloadFileTree() {
   }
 }
 
-async function copyFileTree() {
-  try {
-    if (!currentFileTree)
-      throw new Error(
-        "No file tree data available. Please refresh the file tree first."
-      );
-    await navigator.clipboard.writeText(currentFileTree);
-    logOutput("📋 File tree copied to clipboard!", "success");
-    const button = event.target;
-    const originalText = button.textContent;
-    button.textContent = "✅ Copied!";
-    button.style.background = "#27ae60";
-    setTimeout(() => {
-      button.textContent = originalText;
-      button.style.background = "#f39c12";
-    }, 2000);
-  } catch (err) {
-    logOutput(`❌ Error copying to clipboard: ${err.message}`, "error");
-    const textArea = document.createElement("textarea");
-    textArea.value = currentFileTree;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textArea);
-    logOutput("📋 File tree copied to clipboard (fallback method)", "info");
-  }
-}
-
 function clearConsole() {
-  document.getElementById("output").textContent = "";
-  logOutput("Console cleared", "info");
+  document.getElementById("output").textContent = "Console cleared\n";
+  logOutput("Ready to start...", "info");
 }
 
 // ====================
@@ -898,36 +1355,7 @@ async function deleteOrgRepo() {
   }
 }
 
-// Update githubRequest to handle DELETE method
-async function githubRequest(url, method, token, body = null) {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "Content-Type": "application/json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-  const config = { method, headers };
-  if (body) config.body = JSON.stringify(body);
-
-  try {
-    const response = await fetch(url, config);
-
-    // Handle 204 No Content responses
-    if (response.status === 204) {
-      return { status: "success" };
-    }
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(
-        `Error ${response.status}: ${
-          error.message || "Unknown error"
-        } (URL: ${url})`
-      );
-    }
-    return response.json();
-  } catch (error) {
-    console.error("API Error:", error);
-    throw error;
-  }
-}
+// Initialisation
+logOutput("🚀 Enhanced GitHub File Manager ready!", "success");
+logOutput("💡 Tip: Ctrl+Enter to start copying repositories quickly", "info");
+logOutput("📦 This version can copy entire repositories with content", "info");
